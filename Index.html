@@ -3,49 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medi-Al-Shifa Smart Lens POS</title>
+    <title>Medi-Al-Shifa Turbo Lens</title>
     
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         :root { --lens-blue: #4285F4; --success-green: #34A853; }
-        body { background: #f4f7f6; margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        
+        body { background: #000; margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; color: white; }
         .main-grid { display: flex; height: 100vh; }
 
-        /* Scanner Styling */
-        .scanner-side { flex: 0 0 45%; background: #000; position: relative; }
-        video { width: 100%; height: 100%; object-fit: cover; }
+        /* Left Side: Scanner */
+        .scanner-side { flex: 0 0 50%; position: relative; overflow: hidden; border-right: 2px solid #333; }
+        video { 
+            width: 100%; height: 100%; object-fit: cover;
+            transform: scale(2.2); /* Zoom set to 2.2x */
+            transform-origin: center;
+        }
         
+        /* Laser Line Animation */
+        .laser {
+            position: absolute; top: 50%; left: 5%; width: 90%; height: 2px;
+            background: rgba(255, 0, 0, 0.6); box-shadow: 0 0 15px red;
+            z-index: 10; animation: scanMove 2s infinite linear;
+        }
+        @keyframes scanMove { 0% {top: 30%} 50% {top: 70%} 100% {top: 30%} }
+
         .lens-ui {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 85%; height: 80%; border: 3px solid var(--lens-blue);
-            border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.6); z-index: 5;
-            transition: all 0.2s ease;
+            width: 80%; height: 50%; border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 10px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.4); z-index: 5;
         }
-        .lens-ui.active { border-color: var(--success-green); border-width: 5px; }
+        .lens-ui.active { border-color: var(--success-green); border-width: 5px; box-shadow: 0 0 50px var(--success-green), 0 0 0 2000px rgba(0,0,0,0.3); }
 
         .status-msg {
             position: absolute; top: 20px; left: 20px; right: 20px;
-            background: rgba(0,0,0,0.8); color: white; padding: 12px;
-            border-radius: 10px; text-align: center; font-weight: bold; z-index: 10;
+            background: var(--lens-blue); color: white; padding: 10px;
+            border-radius: 8px; text-align: center; font-weight: bold; z-index: 10;
         }
 
-        /* Billing Styling */
-        .bill-side { flex: 1; background: white; padding: 30px; display: flex; flex-direction: column; box-shadow: -10px 0 20px rgba(0,0,0,0.1); }
-        .table-area { flex: 1; overflow-y: auto; margin-top: 20px; border: 1px solid #eee; border-radius: 12px; }
-        
-        .summary-bar { 
-            background: #1e272e; color: white; padding: 20px; 
-            border-radius: 15px; display: flex; justify-content: space-between; align-items: center;
-        }
-        .total-val { font-size: 36px; font-weight: 800; color: var(--success-green); }
+        /* Right Side: Bill */
+        .bill-side { flex: 1; background: #fff; color: #000; padding: 20px; display: flex; flex-direction: column; }
+        .table-area { flex: 1; overflow-y: auto; margin-top: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .summary-bar { background: #1e272e; color: #fff; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .total-val { font-size: 30px; font-weight: 800; color: var(--success-green); }
 
-        /* Animation Flash */
-        .flash { position: absolute; inset: 0; background: white; opacity: 0; z-index: 10; pointer-events: none; }
-        .flash.active { animation: flashAnim 0.3s; }
-        @keyframes flashAnim { 0% {opacity: 0;} 50% {opacity: 0.6;} 100% {opacity: 0;} }
+        .flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 15; pointer-events: none; }
+        .flash.active { animation: flashAnim 0.2s; }
+        @keyframes flashAnim { 0% {opacity: 0} 50% {opacity: 0.5} 100% {opacity: 0} }
     </style>
 </head>
 <body>
@@ -53,49 +58,42 @@
 <div class="main-grid">
     <div class="scanner-side">
         <div class="flash" id="flash"></div>
-        <div class="status-msg" id="msg">INITIALIZING CAMERA...</div>
+        <div class="laser"></div>
+        <div class="status-msg" id="msg">SYSTEM STARTING...</div>
         <video id="video" autoplay playsinline></video>
         <div class="lens-ui" id="lens"></div>
     </div>
 
     <div class="bill-side">
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="text-primary m-0">Medi-Al-Shifa</h2>
-            <button class="btn btn-sm btn-outline-danger" onclick="location.reload()">Reset POS</button>
-        </div>
-
+        <h4 class="fw-bold text-primary">Medi-Al-Shifa POS</h4>
         <div class="table-area">
-            <table class="table table-hover">
+            <table class="table table-sm">
                 <thead class="table-dark">
                     <tr>
-                        <th>Medicine</th>
+                        <th>Item</th>
                         <th>Batch</th>
                         <th>Qty</th>
-                        <th>Total</th>
-                        <th></th>
+                        <th>Price</th>
                     </tr>
                 </thead>
                 <tbody id="billBody"></tbody>
             </table>
         </div>
-
-        <div class="summary-bar mt-3">
-            <span>GRAND TOTAL:</span>
-            <span class="total-val" id="grandTotalDisplay">PKR 0.00</span>
+        <div class="summary-bar mt-2">
+            <span class="small">TOTAL:</span>
+            <span class="total-val" id="grandTotal">PKR 0.00</span>
         </div>
-        <button class="btn btn-success btn-lg w-100 mt-3 shadow" onclick="alert('Sale Finalized!')">FINALIZE SALE</button>
+        <button class="btn btn-success w-100 mt-2 fw-bold" onclick="location.reload()">NEXT CUSTOMER</button>
     </div>
 </div>
 
 <canvas id="procCanvas" style="display:none;"></canvas>
 
 <script>
-    // --- 1. MOCK DATABASE (Aapka SQL Data) ---
     const medicineDB = [
-        { id: 1, name: "Panadol 500mg", batchNo: "BN101", mrp: 50.00 },
-        { id: 2, name: "Arinac Forte", batchNo: "ART88", mrp: 120.00 },
-        { id: 3, name: "Augmentin 625mg", batchNo: "AUG99", mrp: 350.00 },
-        { id: 4, name: "Brufen 400mg", batchNo: "BRU44", mrp: 85.00 }
+        { id: 1, name: "Panadol 500mg", batch: "BN101", price: 50 },
+        { id: 2, name: "Arinac Forte", batch: "ART88", price: 125 },
+        { id: 3, name: "Augmentin 625", batch: "AUG99", price: 340 }
     ];
 
     const video = document.getElementById('video');
@@ -104,111 +102,94 @@
     const flash = document.getElementById('flash');
     let worker = null;
     let isProcessing = false;
+    let lastFound = "";
 
-    // --- 2. CAMERA & AI SETUP ---
     async function init() {
         try {
-            msg.innerText = "LOADING AI ENGINE...";
             worker = await Tesseract.createWorker();
             await worker.loadLanguage('eng');
             await worker.initialize('eng');
+            // Turbo Mode Parameters
             await worker.setParameters({
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-:. ',
-                tessedit_pageseg_mode: '1'
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+                tessedit_pageseg_mode: '6', // Assume a single uniform block of text
             });
 
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment', width: { ideal: 1280 } } 
+                video: { facingMode: 'environment', focusMode: 'continuous' } 
             });
             video.srcObject = stream;
-            msg.innerText = "READY: SCAN BATCH NUMBER";
-            
-            startScanning();
-        } catch (err) {
-            msg.innerText = "ERROR: " + err.message;
-        }
+            msg.innerText = "READY: MOVE CAMERA OVER BATCH";
+            scanLoop();
+        } catch (e) { msg.innerText = "ERROR: " + e.message; }
     }
 
-    // --- 3. ADAPTIVE SCANNING LOGIC ---
-    async function startScanning() {
+    async function scanLoop() {
         const canvas = document.getElementById('procCanvas');
         const ctx = canvas.getContext('2d');
 
         while (true) {
-            if (isProcessing) { await new Promise(r => setTimeout(r, 100)); continue; }
+            if (isProcessing) { await new Promise(r => setTimeout(r, 50)); continue; }
 
-            // Capture Frame
-            canvas.width = 640; canvas.height = 360;
-            ctx.filter = 'contrast(200%) grayscale(100%)';
-            ctx.drawImage(video, (video.videoWidth-640)/2, (video.videoHeight-360)/2, 640, 360, 0, 0, 640, 360);
+            // Ultra-Fast Capture
+            canvas.width = 600; canvas.height = 300;
+            ctx.filter = 'contrast(300%) grayscale(100%)';
+            ctx.drawImage(video, (video.videoWidth-600)/2, (video.videoHeight-300)/2, 600, 300, 0, 0, 600, 300);
 
             const { data: { text } } = await worker.recognize(canvas);
-            const foundBatch = extractBatch(text.toUpperCase());
+            const cleanText = text.replace(/\s/g, '');
+            
+            // Check matching in DB
+            const match = medicineDB.find(m => cleanText.includes(m.batch));
 
-            if (foundBatch) {
-                const medicine = medicineDB.find(m => m.batchNo === foundBatch);
-                if (medicine) {
-                    isProcessing = true;
-                    processSuccess(medicine);
-                }
+            if (match && match.batch !== lastFound) {
+                isProcessing = true;
+                lastFound = match.batch;
+                hit(match);
             }
-            await new Promise(r => setTimeout(r, 500));
+            // Rapid fire: Check every 100ms
+            await new Promise(r => setTimeout(r, 100));
         }
     }
 
-    function extractBatch(text) {
-        // Look for BN101, B.NO: ART88, etc.
-        const match = text.match(/(?:B\.?NO|BN|BATCH)[:\s]*([A-Z0-9]{3,10})/);
-        return match ? match[1] : null;
-    }
-
-    // --- 4. UI UPDATES ---
-    function processSuccess(med) {
-        // Feedback
+    function hit(med) {
+        // Instant Feedback
         flash.classList.add('active');
         lens.classList.add('active');
-        msg.innerText = "MATCH FOUND: " + med.name;
+        msg.innerText = "ADDED: " + med.name;
         
-        // Add to Table
-        const tbody = document.getElementById('billBody');
-        let row = document.querySelector(`tr[data-id="${med.id}"]`);
+        const row = `<tr>
+            <td>${med.name}</td>
+            <td><b class="text-primary">${med.batch}</b></td>
+            <td>1</td>
+            <td>${med.price}</td>
+        </tr>`;
+        document.getElementById('billBody').insertAdjacentHTML('afterbegin', row);
         
-        if (row) {
-            let qty = parseInt(row.cells[2].innerText) + 1;
-            row.cells[2].innerText = qty;
-            row.cells[3].innerText = (qty * med.mrp).toFixed(2);
-        } else {
-            const html = `
-                <tr data-id="${med.id}">
-                    <td><strong>${med.name}</strong></td>
-                    <td><span class="badge bg-secondary">${med.batchNo}</span></td>
-                    <td>1</td>
-                    <td>${med.mrp.toFixed(2)}</td>
-                    <td><button class="btn btn-sm btn-link text-danger" onclick="this.closest('tr').remove(); updateTotal();">✕</button></td>
-                </tr>`;
-            tbody.insertAdjacentHTML('afterbegin', html);
-        }
-
         updateTotal();
 
         setTimeout(() => {
             flash.classList.remove('active');
             lens.classList.remove('active');
             isProcessing = false;
-            msg.innerText = "READY: SCAN NEXT";
-        }, 2000);
+            // 1 sec baad same batch dubara scan ho sakega
+            setTimeout(() => { lastFound = ""; }, 1000);
+        }, 600);
     }
 
     function updateTotal() {
-        let total = 0;
-        document.querySelectorAll('#billBody tr').forEach(row => {
-            total += parseFloat(row.cells[3].innerText);
+        let t = 0;
+        medicineDB.forEach(m => {
+            const count = document.querySelectorAll('td').textContent === m.name ? 1 : 0; // Simple logic for demo
         });
-        document.getElementById('grandTotalDisplay').innerText = "PKR " + total.toFixed(2);
+        // Real calculation
+        let sum = 0;
+        const rows = document.querySelectorAll('#billBody tr');
+        rows.forEach(r => sum += parseFloat(r.cells[3].innerText));
+        document.getElementById('grandTotal').innerText = "PKR " + sum.toFixed(2);
     }
 
     init();
 </script>
-
 </body>
 </html>
